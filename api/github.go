@@ -119,6 +119,12 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if action.Action == "ping" {
+		w.WriteHeader(200)
+		w.Write([]byte("pong"))
+		return
+	}
+
 	if action.Action != "push" {
 		w.WriteHeader(403)
 		w.Write([]byte("Action Forbidden"))
