@@ -41,7 +41,7 @@ func ensureContainerRunning(w http.ResponseWriter, r *http.Request, id string) (
 
 func battleSnakePoxyHandler(path string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := mux.Vars(r)["id"]
+		id := "bs-" + mux.Vars(r)["id"]
 		ip, running := ensureContainerRunning(w, r, id)
 		if !running {
 			return

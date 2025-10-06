@@ -73,7 +73,7 @@ type pushRequest struct {
 }
 
 func fullNameToContainerName(fullName string) string {
-	return "battlesnake-" + strings.ReplaceAll(fullName, "/", "-")
+	return "bs-" + strings.ReplaceAll(fullName, "/", "-")
 }
 
 func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
@@ -285,7 +285,7 @@ func deployApplication(repoName string) {
 			return
 		}
 	}
-	if !runCmd("Could not create container", "docker", "run", "-d", "--name", containerName, tag) {
+	if !runCmd("Could not create container", "docker", "run", "-d", "--network", "battlesnake-net", "--name", containerName, tag) {
 		return
 	}
 
