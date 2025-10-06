@@ -64,15 +64,12 @@ func checkSecret(payload []byte, secret []byte, sig string) error {
 type repository struct {
 	Private  bool   `json:"private"`
 	FullName string `json:"full_name"`
+	DefaultBranch string `json:"default_branch"`
 }
 
 type pushRequest struct {
 	Ref        string     `json:"ref"`
 	Repository repository `json:"repository"`
-}
-
-type action struct {
-	Action string `json:"action"`
 }
 
 func fullNameToContainerName(fullName string) string {
@@ -81,7 +78,7 @@ func fullNameToContainerName(fullName string) string {
 
 func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// id := r.Header.Get("X-GitHub-Hook-ID")
-	// event := r.Header.Get("X-GitHub-Hook-Event")
+	event := r.Header.Get("X-GitHub-Hook-Event")
 	// delivery := r.Header.Get("X-GitHub-Hook-Delivery")
 	sig := r.Header.Get("X-Hub-Signature")
 	sig256 := r.Header.Get("X-Hub-Signature-256")
@@ -111,26 +108,6 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var action action
-	err = json.Unmarshal(body, &action)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Invalid Request"))
-		return
-	}
-
-	if action.Action == "ping" {
-		w.WriteHeader(200)
-		w.Write([]byte("pong"))
-		return
-	}
-
-	if action.Action != "push" {
-		w.WriteHeader(403)
-		w.Write([]byte("Action Forbidden"))
-		return
-	}
-
 	var request pushRequest
 	err = json.Unmarshal(body, &request)
 	if err != nil {
@@ -151,11 +128,58 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if event == "ping" {
+		w.WriteHeader(200)
+		w.Write([]byte("pong"))
+		return
+	}
+
+	if event != "push" {
+		w.WriteHeader(403)
+		w.Write([]byte("Action Forbidden"))
+		return
+	}
+
 	if request.Repository.Private {
 		w.WriteHeader(500)
 		w.Write([]byte("Cannot Access Private Repos"))
 		return
 	}
+
+	ref := strings.Split(request.Ref, "/")
+	if len(ref) != 3 || ref[0] != "refs" {
+		w.WriteHeader(200)
+		w.Write([]byte("Ignoring push to "))
+		w.Write([]byte(request.Ref))
+		w.Write([]byte("\nOnly deploying from branch "))
+		w.Write([]byte(request.Repository.DefaultBranch))
+		return
+	}
+	if ref[1] == "tags" {
+		w.WriteHeader(200)
+		w.Write([]byte("Ignoring push to tag "))
+		w.Write([]byte(ref[2]))
+		w.Write([]byte("\nOnly deploying from branch "))
+		w.Write([]byte(request.Repository.DefaultBranch))
+		return
+	}
+	if ref[1] != "heads" {
+		w.WriteHeader(200)
+		w.Write([]byte("Ignoring push to "))
+		w.Write([]byte(request.Ref))
+		w.Write([]byte("\nOnly deploying from branch "))
+		w.Write([]byte(request.Repository.DefaultBranch))
+		return
+	}
+	if ref[2] != request.Repository.DefaultBranch {
+		w.WriteHeader(200)
+		w.Write([]byte("Ignoring push to branch "))
+		w.Write([]byte(ref[2]))
+		w.Write([]byte("\nOnly deploying from branch "))
+		w.Write([]byte(request.Repository.DefaultBranch))
+		return
+	}
+
 
 	go deployApplication(request.Repository.FullName)
 
