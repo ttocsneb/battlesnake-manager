@@ -223,7 +223,7 @@ func deployApplication(repoName string) {
 	fmt.Printf("Deploying container %v...\n", containerName)
 
 	exists := true
-	_, err := docker.GetState(containerName)
+	_, err := docker.CheckContainer(containerName)
 	if err != nil {
 		if err == docker.ErrorDoesNotExist {
 			exists = false
@@ -254,8 +254,6 @@ func deployApplication(repoName string) {
 	if imageErr != nil {
 		errorLogger("Could not get list of container images", err)
 	}
-
-	// runCmd("Could not find existing images", )
 
 	repoDir, err := os.MkdirTemp("", containerName+"-*")
 	if err != nil {
@@ -291,7 +289,8 @@ func deployApplication(repoName string) {
 		return
 	}
 
-	_, err = docker.GetState(containerName)
+	// Update the state machine
+	_, err = docker.CheckContainer(containerName)
 	if err != nil {
 		if err == docker.ErrorDoesNotExist {
 			errorLogger("The container was not created", err)
