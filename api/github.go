@@ -56,14 +56,14 @@ func checkSecret(payload []byte, secret []byte, sig string) error {
 	}
 
 	if !hmac.Equal(hasher.Sum(nil), sum) {
-		return errors.New("hmacs don't equal")
+		return errors.New("Signature invalid")
 	}
 	return nil
 }
 
 type repository struct {
-	Private  bool   `json:"private"`
-	FullName string `json:"full_name"`
+	Private       bool   `json:"private"`
+	FullName      string `json:"full_name"`
 	DefaultBranch string `json:"default_branch"`
 }
 
@@ -78,7 +78,7 @@ func fullNameToContainerName(fullName string) string {
 
 func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// id := r.Header.Get("X-GitHub-Hook-ID")
-	event := r.Header.Get("X-GitHub-Hook-Event")
+	event := r.Header.Get("X-GitHub-Event")
 	// delivery := r.Header.Get("X-GitHub-Hook-Delivery")
 	sig := r.Header.Get("X-Hub-Signature")
 	sig256 := r.Header.Get("X-Hub-Signature-256")
@@ -121,7 +121,15 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	if sig256 != "" {
 		sig = sig256
 	}
-	if err = checkSecret(body, secrets[fullNameToContainerName(repoName)], sig); err != nil {
+	secret, found := secrets[fullNameToContainerName(repoName)]
+	if !found {
+		w.WriteHeader(401)
+		w.Write([]byte("Access Denied: "))
+		w.Write([]byte("Not registered"))
+		return
+	}
+
+	if err = checkSecret(body, secret, sig); err != nil {
 		w.WriteHeader(401)
 		w.Write([]byte("Access Denied: "))
 		w.Write([]byte(err.Error()))
@@ -180,7 +188,6 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	go deployApplication(request.Repository.FullName)
 
 	w.WriteHeader(200)
@@ -231,23 +238,23 @@ func deployApplication(repoName string) {
 	reader, err := cmd.StdoutPipe()
 	if err != nil {
 		errorLogger("Could not create stdout pipe", err)
-		return 
+		return
 	}
 	err = cmd.Start()
 	if err != nil {
 		errorLogger("Could not get list of container images", err)
-		return 
+		return
 	}
 	imagesRaw, err := io.ReadAll(reader)
 	if err != nil {
 		errorLogger("Could not get list of container images", err)
-		return 
+		return
 	}
 	imageErr := cmd.Wait()
 	if imageErr != nil {
 		errorLogger("Could not get list of container images", err)
 	}
-	
+
 	// runCmd("Could not find existing images", )
 
 	repoDir, err := os.MkdirTemp("", containerName+"-*")
@@ -268,7 +275,6 @@ func deployApplication(repoName string) {
 	if !runCmd("Could not build image", "docker", "build", "-t", repoName, repoDir) {
 		return
 	}
-
 
 	if exists {
 		err = docker.StopContainer(containerName)
@@ -292,12 +298,12 @@ func deployApplication(repoName string) {
 			return
 		}
 		errorLogger("Could not get the container state", err)
-		return 
+		return
 	}
 
 	fmt.Printf("Successfully deployed %v\n", containerName)
 	fmt.Println("Cleaning up old images...")
-	
+
 	type imageInfo struct {
 		Id string `json:"ID"`
 	}
@@ -316,7 +322,7 @@ func deployApplication(repoName string) {
 		}
 		seenIds = append(seenIds, img.Id)
 
-		if !runCmd("Could not remove old image " + img.Id, "docker", "rmi", img.Id) {
+		if !runCmd("Could not remove old image "+img.Id, "docker", "rmi", img.Id) {
 			continue
 		}
 	}
