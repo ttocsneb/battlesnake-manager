@@ -66,6 +66,7 @@ func battleSnakePoxyHandler(path string) http.HandlerFunc {
 				w.Header().Add(k, v)
 			}
 		}
+		fmt.Printf("%v\t%v\t%v\n", id, path, resp.StatusCode)
 		w.WriteHeader(resp.StatusCode)
 		_, err = io.Copy(w, resp.Body)
 		if err != nil {

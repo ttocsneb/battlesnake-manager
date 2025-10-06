@@ -43,7 +43,7 @@ func loadConfig() error {
 func stopOldContainersJob() time.Duration {
 	toStop := []string{}
 	toPause := []string{}
-	nextRunner := time.Hour
+	nextRunner := time.Minute
 
 	const PAUSE_DELAY time.Duration = time.Minute
 	const STOP_DELAY time.Duration = time.Hour
