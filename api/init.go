@@ -13,6 +13,7 @@ func Serve() error {
 	registerBattleSnakeRoutes(r)
 	registerGithubHandlers(r)
 
+	fmt.Println("Starting server on port 80")
 	return http.ListenAndServe(":80", r)
 }
 

@@ -139,6 +139,7 @@ func StartContainer(name string) error {
 	if !IsRegistered(name) {
 		return ErrorNotRegistered
 	}
+	fmt.Printf("Starting %v\n", name)
 	err := dockerExecCmd(name, "start")
 	if err != nil {
 		return err
@@ -151,6 +152,7 @@ func StopContainer(name string) error {
 	if !IsRegistered(name) {
 		return ErrorNotRegistered
 	}
+	fmt.Printf("Stopping %v\n", name)
 	err := dockerExecCmd(name, "stop")
 	if err != nil {
 		return err
@@ -162,6 +164,7 @@ func PauseContainer(name string) error {
 	if !IsRegistered(name) {
 		return ErrorNotRegistered
 	}
+	fmt.Printf("Pausing %v\n", name)
 	err := dockerExecCmd(name, "pause")
 	if err != nil {
 		return err
@@ -173,6 +176,7 @@ func UnpauseContainer(name string) error {
 	if !IsRegistered(name) {
 		return ErrorNotRegistered
 	}
+	fmt.Printf("Unpausing %v\n", name)
 	err := dockerExecCmd(name, "unpause")
 	if err != nil {
 		return err

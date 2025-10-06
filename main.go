@@ -79,7 +79,6 @@ func stopOldContainersJob() time.Duration {
 			fmt.Printf("\t%v\n", err)
 			continue
 		}
-		fmt.Printf("Stopped container %v\n", name)
 	}
 	for _, name := range toPause {
 		err := docker.PauseContainer(name)
@@ -88,7 +87,6 @@ func stopOldContainersJob() time.Duration {
 			fmt.Printf("\t%v\n", err)
 			continue
 		}
-		fmt.Printf("Paused container %v\n", name)
 	}
 
 	return nextRunner

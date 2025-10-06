@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/ttocsneb/battlesnake-manager/docker"
@@ -41,6 +42,7 @@ func ensureContainerRunning(w http.ResponseWriter, r *http.Request, id string) (
 
 func battleSnakePoxyHandler(path string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		id := "bs-" + mux.Vars(r)["id"]
 		ip, running := ensureContainerRunning(w, r, id)
 		if !running {
@@ -66,13 +68,14 @@ func battleSnakePoxyHandler(path string) http.HandlerFunc {
 				w.Header().Add(k, v)
 			}
 		}
-		fmt.Printf("%v\t%v\t%v\n", id, path, resp.StatusCode)
 		w.WriteHeader(resp.StatusCode)
 		_, err = io.Copy(w, resp.Body)
 		if err != nil {
 			logError(w, r, "Could not write proxied response", err)
 			return
 		}
+		done := time.Now().Sub(start)
+		fmt.Printf("%v\t%v\tStatus %v\t%.2fs\n", id, path, resp.StatusCode, float64(done)/float64(time.Second))
 
 		// Let the docker job know that this battle snake has just been used
 		go func() {
