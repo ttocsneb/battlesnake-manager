@@ -67,7 +67,7 @@ func IsStale(name string) bool {
 	if container.LastUpdate == nil {
 		return true
 	}
-	return time.Now().After((*container.LastUpdate).Add(60 * time.Second))
+	return time.Now().After((*container.LastUpdate).Add(1 * time.Second))
 }
 
 func RegisterContainer(name string) {
