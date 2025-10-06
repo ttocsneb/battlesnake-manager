@@ -49,7 +49,11 @@ func stopOldContainersJob() time.Duration {
 	const STOP_DELAY time.Duration = time.Hour
 
 	docker.IterContainers(func(name string, container docker.ContainerState) bool {
-		timeSince := container.LastUsed.Sub(time.Now())
+		timeSince := 0 * time.Second
+		if container.LastUsed != nil {
+			timeSince = container.LastUsed.Sub(time.Now())
+		}
+
 		if container.Running {
 			if !container.Paused {
 				if timeSince < PAUSE_DELAY {

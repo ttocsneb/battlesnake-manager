@@ -41,7 +41,7 @@ func GetState(name string) (ContainerState, error) {
 }
 
 type Pair struct {
-	Name string
+	Name      string
 	Container ContainerState
 }
 

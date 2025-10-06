@@ -11,6 +11,7 @@ func Serve() error {
 	r := mux.NewRouter()
 
 	registerBattleSnakeRoutes(r)
+	registerGithubHandlers(r)
 
 	return http.ListenAndServe(":80", r)
 }
