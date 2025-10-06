@@ -145,7 +145,9 @@ func StartContainer(name string) error {
 		return err
 	}
 
-	return updateRunning(name, true, false)
+	// Force update the ip
+	_, err = CheckContainer(name)
+	return err
 }
 
 func StopContainer(name string) error {
