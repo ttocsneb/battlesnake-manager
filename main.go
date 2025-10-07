@@ -34,6 +34,7 @@ func loadConfig() error {
 	}
 
 	for _, val := range result {
+		fmt.Printf("Registering Repo %v\n", val)
 		docker.RegisterContainer(val.Name)
 		api.RegisterSecret(val.Name, val.Secret)
 	}
@@ -45,8 +46,11 @@ func loadConfig() error {
 		if err != nil {
 			if err == docker.ErrorDoesNotExist {
 				go api.DeployApplicationPublic(val.Name)
+			} else {
+				fmt.Printf("Could not check %v status:\n", val.Name)
+				fmt.Printf("\t%v\n", err)
 			}
-		}
+		} 
 	}
 
 	return nil
