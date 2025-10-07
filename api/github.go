@@ -16,15 +16,27 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/ttocsneb/battlesnake-manager/docker"
 )
 
-var secrets map[string][]byte = map[string][]byte{}
+type buildConfigT struct {
+	Secret        []byte
+	BuildingMutex sync.Mutex
+	Queued        bool
+}
 
-func RegisterSecret(id string, secret string) {
-	secrets[id] = []byte(secret)
+var buildConfig map[string]*buildConfigT = map[string]*buildConfigT{}
+
+func RegisterSecret(repoName string, secret string) {
+	buildConfig[repoName] = &buildConfigT{
+		Secret:        []byte(secret),
+		BuildingMutex: sync.Mutex{},
+		Queued:        false,
+	}
+
 }
 
 func registerGithubHandlers(r *mux.Router) {
@@ -72,22 +84,13 @@ type pushRequest struct {
 	Repository repository `json:"repository"`
 }
 
-func fullNameToContainerName(fullName string) string {
-	return "bs-" + strings.ReplaceAll(fullName, "/", "-")
-}
-
 func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
-	// id := r.Header.Get("X-GitHub-Hook-ID")
 	event := r.Header.Get("X-GitHub-Event")
-	// delivery := r.Header.Get("X-GitHub-Hook-Delivery")
 	sig := r.Header.Get("X-Hub-Signature")
 	sig256 := r.Header.Get("X-Hub-Signature-256")
 	contentType := r.Header.Get("Content-Type")
 
 	agent := r.Header.Get("User-Agent")
-
-	// targetType := r.Header.Get("X-GitHub-Hook-Installation-Target-Type")
-	// targetId := r.Header.Get("X-GitHub-Hook-Installation-Target-ID")
 
 	if !strings.HasPrefix(agent, "GitHub-Hookshot/") {
 		w.WriteHeader(401)
@@ -121,7 +124,7 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	if sig256 != "" {
 		sig = sig256
 	}
-	secret, found := secrets[fullNameToContainerName(repoName)]
+	conf, found := buildConfig[repoName]
 	if !found {
 		w.WriteHeader(401)
 		w.Write([]byte("Access Denied: "))
@@ -129,7 +132,7 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = checkSecret(body, secret, sig); err != nil {
+	if err = checkSecret(body, conf.Secret, sig); err != nil {
 		w.WriteHeader(401)
 		w.Write([]byte("Access Denied: "))
 		w.Write([]byte(err.Error()))
@@ -188,6 +191,15 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	locked := conf.BuildingMutex.TryLock()
+	if !locked {
+		w.WriteHeader(200)
+		w.Write([]byte("There is already a job deploying\n"))
+		w.Write([]byte("Adding the build job to the queue"))
+		conf.Queued = true
+		return
+	}
+
 	go deployApplication(request.Repository.FullName)
 
 	w.WriteHeader(200)
@@ -196,7 +208,37 @@ func githubWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("..."))
 }
 
+func DeployApplicationPublic(repoName string) {
+	conf := buildConfig[repoName]
+	if conf == nil {
+		fmt.Println("Could not deploy container, not registered")
+		return
+	}
+	conf.BuildingMutex.Lock()
+
+	deployApplication(repoName)
+}
+
 func deployApplication(repoName string) {
+	containerName := docker.RepoNameToContainerName(repoName)
+	fmt.Printf("Deploying container %v...\n", containerName)
+
+	conf := buildConfig[repoName]
+	if conf == nil {
+		fmt.Println("Could not deploy container, not registered")
+		return
+	}
+	defer func() {
+		// When this function finishes, If there was another job queued, re-run
+		// the job, otherwise free the mutex
+		if conf.Queued {
+			conf.Queued = false
+			deployApplication(repoName)
+		} else {
+			conf.BuildingMutex.Unlock()
+		}
+	}()
+
 	errorLogger := func(msg string, err error) {
 		fmt.Printf("While deploying %v\n", repoName)
 		fmt.Printf("\t%v:\n", msg)
@@ -218,9 +260,6 @@ func deployApplication(repoName string) {
 		}
 		return true
 	}
-
-	containerName := fullNameToContainerName(repoName)
-	fmt.Printf("Deploying container %v...\n", containerName)
 
 	exists := true
 	_, err := docker.CheckContainer(containerName)
@@ -269,7 +308,7 @@ func deployApplication(repoName string) {
 	if !runCmd("Could not clone repo", "git", "clone", "https://github.com/"+repoName+".git", repoDir) {
 		return
 	}
-	tag := repoName + ":latest"
+	tag := repoName + ":local"
 	if !runCmd("Could not build image", "docker", "build", "-t", repoName, repoDir) {
 		return
 	}
@@ -285,7 +324,7 @@ func deployApplication(repoName string) {
 			return
 		}
 	}
-	if !runCmd("Could not create container", "docker", "run", "-d", "--network", "battlesnake-net", "--name", containerName, tag) {
+	if !runCmd("Could not create container", "docker", "run", "-d", "--name", containerName, tag) {
 		return
 	}
 

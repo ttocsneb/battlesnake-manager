@@ -7,11 +7,16 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 )
 
 var ErrorNotRegistered = errors.New("Container not registered")
 var ErrorDoesNotExist = errors.New("Container does not exist")
+
+func RepoNameToContainerName(repoName string) string {
+	return "bs-" + strings.ReplaceAll(repoName, "/", "-")
+}
 
 var client *http.Client = nil
 var clientMutex sync.Mutex

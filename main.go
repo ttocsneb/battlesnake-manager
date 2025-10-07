@@ -37,6 +37,18 @@ func loadConfig() error {
 		docker.RegisterContainer(val.Name)
 		api.RegisterSecret(val.Name, val.Secret)
 	}
+
+	// Deploy any non-existing repos
+	for _, val := range result {
+		containerName := docker.RepoNameToContainerName(val.Name)
+		_, err := docker.CheckContainer(containerName)
+		if err != nil {
+			if err == docker.ErrorDoesNotExist {
+				go api.DeployApplicationPublic(val.Name)
+			}
+		}
+	}
+
 	return nil
 }
 

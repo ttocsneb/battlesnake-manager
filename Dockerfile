@@ -9,7 +9,9 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o main
 
-FROM docker:28-cli AS runner
+FROM docker:28-dind AS runner
+
+RUN apk add --no-cache bash git vim
 
 WORKDIR /data
 COPY --from=builder /app/main /app/main

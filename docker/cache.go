@@ -40,11 +40,6 @@ func GetState(name string) (ContainerState, error) {
 	return state, nil
 }
 
-type Pair struct {
-	Name      string
-	Container ContainerState
-}
-
 func IterContainers(yield func(name string, container ContainerState) bool) {
 	containerStateMutext.RLock()
 	defer containerStateMutext.RUnlock()
@@ -70,13 +65,15 @@ func IsStale(name string) bool {
 	return time.Now().After((*container.LastUpdate).Add(1 * time.Second))
 }
 
-func RegisterContainer(name string) {
+func RegisterContainer(repoName string) {
 	containerStateMutext.Lock()
 	defer containerStateMutext.Unlock()
 
-	if !isRegisteredUnsafe(name) {
+	containerName := RepoNameToContainerName(repoName)
+
+	if !isRegisteredUnsafe(containerName) {
 		state := ContainerState{}
-		containerStates[name] = state
+		containerStates[containerName] = state
 	}
 }
 
