@@ -246,6 +246,7 @@ func deployApplication(repoName string) {
 	}
 	runCmd := func(message string, name string, args ...string) bool {
 		cmd := exec.Command(name, args...)
+		cmd.Env = append(cmd.Env, "DOCKER_HOST=unix:///var/run/docker.sock")
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
 		err := cmd.Start()
@@ -273,6 +274,7 @@ func deployApplication(repoName string) {
 	}
 
 	cmd := exec.Command("docker", "images", "--format", "{{ json . }}", repoName)
+	cmd.Env = append(cmd.Env, "DOCKER_HOST=unix:///var/run/docker.sock")
 	cmd.Stderr = os.Stderr
 	reader, err := cmd.StdoutPipe()
 	if err != nil {
@@ -309,7 +311,7 @@ func deployApplication(repoName string) {
 		return
 	}
 	tag := repoName + ":local"
-	if !runCmd("Could not build image", "docker", "build", "-t", repoName, repoDir) {
+	if !runCmd("Could not build image", "docker", "build", "-t", tag, repoDir) {
 		return
 	}
 

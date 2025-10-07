@@ -110,6 +110,7 @@ func stopOldContainersJob() time.Duration {
 
 func main() {
 	docker.WaitForDockerSocket()
+	time.Sleep(2 * time.Second)
 
 	err := loadConfig()
 	if err != nil {

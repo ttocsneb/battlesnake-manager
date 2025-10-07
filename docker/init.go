@@ -93,8 +93,9 @@ func WaitForDockerSocket() {
 			}
 		}
 
-		if time.Since(lastLog) > 5 * time.Second {
-			 fmt.Printf("docker socket not available after %d seconds\n", int(time.Since(start).Seconds()))
+		if time.Since(lastLog) > 5*time.Second {
+			lastLog = time.Now()
+			fmt.Printf("docker socket not available after %d seconds\n", int(time.Since(start).Seconds()))
 		}
 
 		time.Sleep(500 * time.Millisecond)

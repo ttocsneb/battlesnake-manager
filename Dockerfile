@@ -17,5 +17,5 @@ WORKDIR /data
 COPY --from=builder /app/main /app/main
 EXPOSE 80
 
-CMD ["/app/main"]
+CMD ["sh", "-c", "/usr/local/bin/dockerd-entrypoint.sh & /app/main"]
 
