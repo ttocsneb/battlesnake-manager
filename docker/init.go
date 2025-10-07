@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 var ErrorNotRegistered = errors.New("Container not registered")
@@ -21,11 +23,12 @@ func RepoNameToContainerName(repoName string) string {
 var client *http.Client = nil
 var clientMutex sync.Mutex
 
+const socketPath string = "/var/run/docker.sock"
+
 func dockerExec(req *http.Request) (*http.Response, error) {
 	clientMutex.Lock()
 	defer clientMutex.Unlock()
 	if client == nil {
-		const socketPath string = "/var/run/docker.sock"
 		tr := &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return net.Dial("unix", socketPath)
@@ -74,6 +77,28 @@ func dockerExecCmd(container string, action string) error {
 		return ErrorDoesNotExist
 	}
 	return fmt.Errorf("Returned Status Code %v", resp.StatusCode)
+}
+
+func WaitForDockerSocket() {
+	start := time.Now()
+	lastLog := start
+	for {
+		// Check if the socket exists
+		if _, err := os.Stat(socketPath); err == nil {
+			// Try connecting to it
+			conn, err := net.DialTimeout("unix", socketPath, time.Second)
+			if err == nil {
+				conn.Close()
+				return
+			}
+		}
+
+		if time.Since(lastLog) > 5 * time.Second {
+			 fmt.Printf("docker socket not available after %d seconds\n", int(time.Since(start).Seconds()))
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 type ContainerStateJson struct {

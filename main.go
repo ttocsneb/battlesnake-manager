@@ -34,7 +34,7 @@ func loadConfig() error {
 	}
 
 	for _, val := range result {
-		fmt.Printf("Registering Repo %v\n", val)
+		fmt.Printf("Registering Repo %v\n", val.Name)
 		docker.RegisterContainer(val.Name)
 		api.RegisterSecret(val.Name, val.Secret)
 	}
@@ -109,6 +109,8 @@ func stopOldContainersJob() time.Duration {
 }
 
 func main() {
+	docker.WaitForDockerSocket()
+
 	err := loadConfig()
 	if err != nil {
 		panic(err)
